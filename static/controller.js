@@ -14,7 +14,8 @@ angular.module('partyApp', [])
   $scope.maxTracksToLookupAtOnce = 50;
   $scope.loading = true;
   $scope.ready   = false;
-  $scope.history = ["asdf", "asdf", "asdf"];
+  $scope.history = [];
+  $scope.ranking = [];
   $scope.currentState = {
     paused : false,
     length : 0,
@@ -36,8 +37,10 @@ angular.module('partyApp', [])
 	     $scope.history = $scope.history.slice(0, 4);
              console.log("hisotry:");
 	     console.log($scope.history);
-	     $scope.$apply();
+	     // $scope.$apply();
         });
+
+        $scope.getRanking();
     } catch(ignored) {
         console.log("Error:");
         console.log(ignored);
@@ -84,7 +87,7 @@ angular.module('partyApp', [])
   });
   mopidy.on('event:trackPlaybackStarted', function(event){
     $scope.currentState.track = event.tl_track.track;
-    updateHistory(true);
+    updateHistory(true); 
     $scope.$apply();
   });
   mopidy.on('event:tracklistChanged', function(){
@@ -127,11 +130,6 @@ angular.module('partyApp', [])
       'any' : [$scope.searchField]
     }).done($scope.handleSearchResult);
   };
-
-  $scope.history = function(){
-
-
-  }
 
   $scope.handleBrowseResult = function(res){
 
@@ -257,6 +255,15 @@ angular.module('partyApp', [])
     xmlHttp.send( null );
     $scope.message = ['success', xmlHttp.responseText];
     $scope.$apply();
+  };
+
+  $scope.getRanking = function(){
+    var xmlHttp = new XMLHttpRequest();
+    xmlHttp.open( "GET", "/party/rank", false ); // false for synchronous request
+    xmlHttp.send( null );
+    var rankingList = JSON.parse(xmlHttp.responseText)
+    console.log(rankingList);
+    $scope.ranking = rankingList.map(elem => elem.songName + " ("+elem.playCount+")");
   };
  
 });

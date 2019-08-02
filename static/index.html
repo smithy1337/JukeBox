@@ -33,6 +33,14 @@
             <span class="fas fa-exclamation-triangle" ng-if="currentState.length === 0"></span>
             {{ currentState.length }} track{{ currentState.length > 1 ? 's' : '' }}
           </small></p>
+	 <div>
+	   <ul class="list-group" id="ranking" style="margin-top:20px">
+	     <li class="list-group-item" ng-repeat="rank in ranking">
+	       <span><pre>{{ rank }}</pre></span>
+	     </li>
+	   </ul>
+        </div>
+	
         </div>
         <div class="col-8">
           <div class="card card-body bg-light">
@@ -48,8 +56,8 @@
           </div>
          <div>
          <ul class="list-group" id="history" style="margin-top:20px">
-           <li class="list-group-item" ng-repeat="track in history">
-              <span>{{ track }}</span>
+           <li class="list-group-item" ng-repeat="his in history track by $index">
+              <span>{{ his }}</span>
            </li>
          </ul>
         </div>

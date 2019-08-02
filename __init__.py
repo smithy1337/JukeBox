@@ -4,11 +4,15 @@ import os
 
 import tornado.web
 
-from mopidy import config, ext
+import json
+
+from mopidy import config, ext, core
 
 __version__ = '0.3.1'
 
 _requiredVotes = 3
+_RankedSongList = []
+
 def setRequiredVotes(votes):
     global _requiredVotes
     _requiredVotes = votes
@@ -77,14 +81,62 @@ class PartyLikeHandler(tornado.web.RequestHandler):
 	print(("People liked: %d") % (len(self.data["likes"])))
         print(("Votes after Like: %d") % (getRequiredVotes()))
 
+class PartyRankingHandler(tornado.web.RequestHandler):
+    global _RankedSongList
+
+    def initialize(self, core, data):
+	self.core = core
+        self.data = data
+
+    def get(self):
+	currentTrack = self.core.playback.get_current_track().get()
+        if (currentTrack != None): 
+            currentTrackURI = currentTrack.uri
+
+            # If the current track is different to the one stored, clear votes
+            if (currentTrackURI != self.data["track"]):
+                self.data["track"] = currentTrackURI
+	        print(("ListLen: %d\n") % (len(_RankedSongList)))
+
+	        if(len(_RankedSongList) > 0): 
+                    found = False   
+                    for elem in _RankedSongList:
+                        if currentTrackURI == elem['songURI']:       
+                            print("URI was found!\n")
+                            elem['playCount'] = elem['playCount'] + 1
+                            found = True
+            
+                    if not(found):
+                        print("Track: %s  -  %s\n" % (currentTrack.name, currentTrack.uri))
+		        _RankedSongList.append({'songURI' : currentTrackURI, 'songName' : currentTrack.name, 'playCount' : 1})
+                else:
+                    _RankedSongList.append({'songURI' : currentTrackURI, 'songName' : currentTrack.name, 'playCount' : 1})
+
+	        _RankedSongList.sort(key =lambda count: count["playCount"], reverse = True)
+
+	for elem in _RankedSongList:
+	    print(("Song: %s\n") % (elem['songName']))
+	self.write(json.dumps(_RankedSongList , ensure_ascii=False))
+
+        
+
+
 def party_factory(config, core):
     data = {'track':"", 'votes':[], 'likes':[]}
     return [
     ('/vote', PartyVoteHandler, {'core': core, 'data':data, 'config':config}),
-    ('/like', PartyLikeHandler, {'core': core, 'data':data, 'config':config})
+    ('/like', PartyLikeHandler, {'core': core, 'data':data, 'config':config}),
+    ('/rank', PartyRankingHandler, {'core': core, 'data':data})
     ]
 
-
+#class RankedSong(dict):
+#    def __init__(self, uri=None, name=None, count=None):
+#	self.SongURI = uri
+#	self.SongName = name
+#	self.PlayCount = count
+#    def setPlayCount(self, count):
+#        self.PlayCount = count
+    
 class Extension(ext.Extension):
 
     dist_name = 'Mopidy-Party'
