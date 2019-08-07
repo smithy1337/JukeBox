@@ -35,9 +35,8 @@ angular.module('partyApp', [])
                  $scope.history = $scope.history.slice(1);
              }
 	     $scope.history = $scope.history.slice(0, 4);
-             console.log("hisotry:");
+             console.log("history:");
 	     console.log($scope.history);
-	     // $scope.$apply();
         });
 
         $scope.getRanking();
@@ -49,13 +48,23 @@ angular.module('partyApp', [])
   }
 
   // Initialize
-
   mopidy = new Mopidy({
     'callingConvention' : 'by-position-or-by-name'
   });
 
-  // Adding listenners
+  var updateGUI = function() {
+    var temp = null;
+    mopidy.playback.getCurrentTrack().then(function(track) {
+      if(temp != track) {
+        temp = track;
+        $scope.currentState.track = track;
+        updateHistory(true);
+        $scope.$apply();
+      }
+    });
+  }
 
+  // Adding listenners
   mopidy.on('state:online', function () {
     updateHistory(false);
     mopidy.playback
@@ -65,6 +74,7 @@ angular.module('partyApp', [])
         $scope.currentState.track = track;
         updateHistory(true);
       }
+
       return mopidy.playback.getState();
     })
     .then(function(state){
@@ -80,21 +90,33 @@ angular.module('partyApp', [])
       $scope.$apply();
       $scope.search();
     });
+
+    setInterval(function(){
+        updateGUI();
+    }, 5000);
+
   });
+
   mopidy.on('event:playbackStateChanged', function(event){
     $scope.currentState.paused = (event.new_state === 'paused');
+    console.log("trackPlaybackStarted");
     $scope.$apply();
   });
   mopidy.on('event:trackPlaybackStarted', function(event){
     $scope.currentState.track = event.tl_track.track;
     updateHistory(true); 
+    console.log("trackPlaybackStarted");
     $scope.$apply();
+    $scope.refresh();
   });
   mopidy.on('event:tracklistChanged', function(){
     mopidy.tracklist.getLength().done(function(length){
       $scope.currentState.length = length;
       $scope.$apply();
     });
+  });
+  mopidy.on('event:stream_title_changed', function(){
+    console.log("New Trackplayback started!");
   });
 
   $scope.printDuration = function(track){
@@ -263,7 +285,7 @@ angular.module('partyApp', [])
     xmlHttp.send( null );
     var rankingList = JSON.parse(xmlHttp.responseText)
     console.log(rankingList);
-    $scope.ranking = rankingList.map(elem => elem.songName + " ("+elem.playCount+")");
+    $scope.ranking = rankingList.map(elem => elem.artist + " - " + elem.songName + " ["+elem.playCount+"]");
   };
  
 });

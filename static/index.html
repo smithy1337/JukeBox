@@ -6,44 +6,57 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 
     <title>Party!</title>
-
+	
     <link href="vendors/bootstrap.min.css" rel="stylesheet">
     <link href="vendors/fontawesome-all.min.css" rel="stylesheet">
     <link href="style.css" rel="stylesheet">
 
+    <script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+
     <script type="text/javascript" src="vendors/mopidy.min.js"></script>
     <script type="text/javascript" src="vendors/angular.min.js"></script>
     <script type="text/javascript" src="controller.js"></script>
+    <script type="text/javascript" src="vendors/backgrounds.js"></script>
+   
   </head>
+	<div class="title">
+ 	<h2> JUKEBOX ✮  </h2>
+	<img src="images/logotransparentsmall.png" id="logo"></h1>
+	</div>
+  <!--<h1>AU <span class="fire" id="fire">JU</span><span class="burn" id="fire">KE</span><span class="burn" id="fire">BO</span><span class="fire" id="fire">X</span> SE-->
   <body ng-controller="MainController">
     <div class="container-fluid" style="margin-top:20px">
       <div class="row">
-        <div class="col-4">
-          <button type="button" class="btn" ng-model="button" ng-click="togglePause()" ng-disabled="!ready || currentState.length === 0" ng-class="{'btn-success' : currentState.paused, 'btn-danger': !currentState.paused}">
+        <div class="col-2">
+          <button type="button" class="btn" ng-model="button" ng-click="togglePause()" ng-disabled="!ready || currentState.length === 0" ng-class="{'btn-success' : currentState.paused, 'btn-warning': !currentState.paused}">
             <span class="fas fa-pause" ng-class="{'fa-play': currentState.paused, 'fa-pause' : !currentState.paused}"></span>
           </button>
           <button type="button" class="btn btn-primary" ng-model="button" ng-click="nextTrack()" ng-disabled="!ready || currentState.length === 0">
             <span class="fas fa-step-forward"></span>
           </button>
-          <button type="button" class="btn" ng-model="button" ng-click="superlike()" ng-disabled="!ready || currentState.length === 0">
-            <span>like</span>
+          <button type="button" class="btn btn-danger" ng-model="button" ng-click="superlike()" ng-disabled="!ready || currentState.length === 0">
+            <span class="fas fa-heart"></span>
           </button>
-          <p><small>
+          <p><small style="color:#D4D4D4">
             <span class="fas fa-music" ng-if="currentState.length > 0"></span>
-            <span class="fas fa-exclamation-triangle" ng-if="currentState.length === 0"></span>
+            <span class="fas fa-exclamation-triangle" ng-if="currentState.length === 0" ></span>
             {{ currentState.length }} track{{ currentState.length > 1 ? 's' : '' }}
-          </small></p>
-	 <div>
-	   <ul class="list-group" id="ranking" style="margin-top:20px">
-	     <li class="list-group-item" ng-repeat="rank in ranking">
-	       <span><pre>{{ rank }}</pre></span>
-	     </li>
-	   </ul>
+          </small></p>	
+	    <select size="1" id="backgrounds" style="background-color:#D4D4D4">
+		<option value="images/eqcuttest.gif">Wolfstyle</option>
+		<option value="images/hypno.gif">LSD</option>
+		<option value="images/matrix.gif">Matrix</option>
+		<option value="images/ghost.gif">Spooky</option>
+	    </select>
         </div>
-	
+        <div class="col-3">
+          <div class="alert" role="alert" ng-show="message.length" ng-class="{'alert-success' : (message[0] == 'success'), 'alert-danger' : (message[0] == 'error')}">
+            {{ message[1] }}
+          </div>
         </div>
-        <div class="col-8">
-          <div class="card card-body bg-light">
+        <div class="col-7">
+          <div class="card card-body" id="nowPlaying" style="background-color:#D4D4D4">
+		 <h5 class="card-title" id="cardtitle">Now Playing ♬</h5>
           {{ currentState.track.name }}
           <small>
 	    <span ng-if="currentState.track.artists">by</span>
@@ -54,32 +67,41 @@
           </small>
 	  <small>{{ printDuration(currentState.track) }}</small>
           </div>
-         <div>
-         <ul class="list-group" id="history" style="margin-top:20px">
-           <li class="list-group-item" ng-repeat="his in history track by $index">
+        </div>
+      </div>
+      <div class="row" style="margin-top:20px">
+	 <div class="col-5">
+	   <ul class="list-group" id="ranking">
+             <h5 class="fire_text" align="center">Top 4 Tracks ♚</h5>
+             <li class="list-group-item" ng-show="!ranking.length" style="background-color:#D4D4D4"><span>No Ranking Information available!</span></li>
+	     <li class="list-group-item" ng-repeat="rank in ranking|limitTo:4" style="background-color:#D4D4D4">
+	       <span>{{ rank }}</span>
+	     </li>
+	   </ul>
+        </div>
+         <div class="col-7">
+         <ul class="list-group" id="history">
+           <h5 class="fire_text" align="center">Track History ↺</h5>
+           <li class="list-group-item" ng-show="!history.length" style="background-color:#D4D4D4"><span>Nothing played yet!</span></li>
+           <li class="list-group-item" ng-repeat="his in history track by $index" style="background-color:#D4D4D4">
               <span>{{ his }}</span>
            </li>
          </ul>
         </div>
-        </div>
       </div>
-      <div class="row">
+      <div class="row" style="margin-top:20px">
         <div class="col-12">
           <form ng-submit="search()">
-            <input type="text" role="search" class="form-control" placeholder="Search..." ng-model="searchField" ng-disabled="!ready">
+            <input type="text" role="search" class="form-control" placeholder="Search..." ng-model="searchField" ng-disabled="!ready" style="background-color:#D4D4D4">
           </form>
-          <div ng-show="loading" class="container-fluid">
+          <div ng-show="loading" class="container-fluid" style="color:#D4D4D4">
             <p><span class="fas fa-hourglass"></span> Loading...</p>
           </div>
         </div>
       </div>
 
-      <div class="alert" role="alert" ng-show="message.length" ng-class="{'alert-success' : (message[0] == 'success'), 'alert-danger' : (message[0] == 'error')}">
-        {{ message[1] }}
-      </div>
-
-      <ul class="list-group" style="margin-top:20px">
-        <li class="list-group-item" ng-repeat="track in tracks">
+      <ul class="list-group" id="search_result" style="margin-top:20px">
+        <li class="list-group-item" ng-repeat="track in tracks" style="background-color:#D4D4D4">
           <button type="button" class="btn btn-xs btn-success add-button" ng-model="button" ng-click="addTrack(track)" ng-disabled="track.disabled">
             <span class="fas fa-play" ng-if="!track.disabled"></span>
             <span class="fas fa-check" ng-if="track.disabled"></span>

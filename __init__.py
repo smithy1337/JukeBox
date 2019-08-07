@@ -5,6 +5,9 @@ import os
 import tornado.web
 
 import json
+import csv
+
+import pykka
 
 from mopidy import config, ext, core
 
@@ -12,6 +15,7 @@ __version__ = '0.3.1'
 
 _requiredVotes = 3
 _RankedSongList = []
+_rank_csv = './ranking.csv'
 
 def setRequiredVotes(votes):
     global _requiredVotes
@@ -19,6 +23,40 @@ def setRequiredVotes(votes):
 
 def getRequiredVotes():
     return _requiredVotes
+
+class PartyListener(core.CoreListener, pykka.ThreadingActor):
+    def track_playback_started(self, tl_track):
+        currentTrack = tl_track.track
+        if (currentTrack != None): 
+            currentTrackURI = currentTrack.uri
+            currentTrackName = currentTrack.name
+            currentTrackArtist = ""
+            for artist in currentTrack.artists:
+                currentTrackArtist += artist.name + ", "
+            currentTrackArtist = currentTrackArtist[:-2]
+
+	    if(len(_RankedSongList) > 0): 
+                found = False   
+                for elem in _RankedSongList:
+                    if currentTrackURI == elem["songURI"]:       
+                        elem["playCount"] = elem["playCount"] + 1
+                        found = True
+                if not(found):
+                    print("new Track: %s  -  %s" % (currentTrackArtist, currentTrackName))
+		    _RankedSongList.append({"songURI" : currentTrackURI, "songName" : currentTrackName, "artist" : currentTrackArtist, "playCount" : 1})
+            else:
+                _RankedSongList.append({"songURI" : currentTrackURI, "songName" : currentTrackName, "artist" : currentTrackArtist, "playCount" : 1})
+
+            # sort List descending
+	    _RankedSongList.sort(key =lambda count: count["playCount"], reverse = True) 
+
+            # write updated List to *.csv
+            f = csv.writer(open(_rank_csv, "w"))
+            for x in _RankedSongList:
+                f.writerow([x["songURI"], x["songName"].encode('utf-8'), x["artist"].encode('utf-8'), x["playCount"]])
+
+PartyListener.start()
+
 
 class PartyVoteHandler(tornado.web.RequestHandler):
 
@@ -89,33 +127,6 @@ class PartyRankingHandler(tornado.web.RequestHandler):
         self.data = data
 
     def get(self):
-	currentTrack = self.core.playback.get_current_track().get()
-        if (currentTrack != None): 
-            currentTrackURI = currentTrack.uri
-
-            # If the current track is different to the one stored, clear votes
-            if (currentTrackURI != self.data["track"]):
-                self.data["track"] = currentTrackURI
-	        print(("ListLen: %d\n") % (len(_RankedSongList)))
-
-	        if(len(_RankedSongList) > 0): 
-                    found = False   
-                    for elem in _RankedSongList:
-                        if currentTrackURI == elem['songURI']:       
-                            print("URI was found!\n")
-                            elem['playCount'] = elem['playCount'] + 1
-                            found = True
-            
-                    if not(found):
-                        print("Track: %s  -  %s\n" % (currentTrack.name, currentTrack.uri))
-		        _RankedSongList.append({'songURI' : currentTrackURI, 'songName' : currentTrack.name, 'playCount' : 1})
-                else:
-                    _RankedSongList.append({'songURI' : currentTrackURI, 'songName' : currentTrack.name, 'playCount' : 1})
-
-	        _RankedSongList.sort(key =lambda count: count["playCount"], reverse = True)
-
-	for elem in _RankedSongList:
-	    print(("Song: %s\n") % (elem['songName']))
 	self.write(json.dumps(_RankedSongList , ensure_ascii=False))
 
         
@@ -139,6 +150,7 @@ def party_factory(config, core):
     
 class Extension(ext.Extension):
 
+    global _RankedSongList
     dist_name = 'Mopidy-Party'
     ext_name = 'party'
     version = __version__
@@ -161,3 +173,20 @@ class Extension(ext.Extension):
             'name': self.ext_name,
             'factory': party_factory,
         })
+        
+        #Wia funktioniert der scheiss::
+        #registry.add('partyEventListener', PartyListener)
+
+        # read Ranking from *.csv
+        try:
+            csvfile = open(_rank_csv, 'r')
+            fieldnames = ('songURI', 'songName','artist','playCount')
+            reader = csv.DictReader( csvfile, fieldnames)
+            for row in reader:
+                _RankedSongList.append({"songURI" : row['songURI'], "songName" : row['songName'].decode('utf-8'), "artist" : row['artist'].decode('utf-8'), "playCount" : int(row['playCount'])})
+        except IOError:
+            print("No Ranking was found!");
+
+
+
+
