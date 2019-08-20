@@ -5,10 +5,11 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 
-    <title>Party!</title>
+    <title>AU-SE JUKEBOX!</title>
 	
     <link href="vendors/bootstrap.min.css" rel="stylesheet">
     <link href="vendors/fontawesome-all.min.css" rel="stylesheet">
+    <link href="vendors/fontawesome-all.css" rel="stylesheet">
     <link href="style.css" rel="stylesheet">
 
     <script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
@@ -17,10 +18,15 @@
     <script type="text/javascript" src="vendors/angular.min.js"></script>
     <script type="text/javascript" src="controller.js"></script>
     <script type="text/javascript" src="vendors/backgrounds.js"></script>
-   
+    <script>
+	function popUp(){
+		var win = window.open();
+		win.document.write('<iframe width="450" height="450" src="Games/snakehtml.html" frameborder="0" allowfullscreen></iframe>');
+	}
+    </script>
   </head>
 	<div class="title">
- 	<h2> JUKEBOX ✮  </h2>
+ 	<h2><span id="ause" style="margin-right:40px" style="margin-bottom:20px">AU</span>JUKEBOX<span id="ause" style="margin-left:40px" style="margin-bottom:20px">SE</span></h2>
 	<img src="images/logotransparentsmall.png" id="logo"></h1>
 	</div>
   <!--<h1>AU <span class="fire" id="fire">JU</span><span class="burn" id="fire">KE</span><span class="burn" id="fire">BO</span><span class="fire" id="fire">X</span> SE-->
@@ -37,6 +43,9 @@
           <button type="button" class="btn btn-danger" ng-model="button" ng-click="superlike()" ng-disabled="!ready || currentState.length === 0">
             <span class="fas fa-heart"></span>
           </button>
+          <button type="button" class="btn btn-secondary active btn-dark" ng-model="button" ng-click="mute()" ng-disabled="!ready || currentState.length === 0">
+            <span class="fas fa-comment-slash"></span>
+          </button>
           <p><small style="color:#D4D4D4">
             <span class="fas fa-music" ng-if="currentState.length > 0"></span>
             <span class="fas fa-exclamation-triangle" ng-if="currentState.length === 0" ></span>
@@ -47,12 +56,16 @@
 		<option value="images/hypno.gif">LSD</option>
 		<option value="images/matrix.gif">Matrix</option>
 		<option value="images/ghost.gif">Spooky</option>
+		<option value="images/lougif1.gif">4Philipp</option>
+		<option value="images/fishi.gif">Fishy</option>
+		<option value="images/teddy1.png">Ted1</option>
 	    </select>
         </div>
         <div class="col-3">
           <div class="alert" role="alert" ng-show="message.length" ng-class="{'alert-success' : (message[0] == 'success'), 'alert-danger' : (message[0] == 'error')}">
             {{ message[1] }}
           </div>
+	<button id="secret" onClick="popUp()">SECRET</button>
         </div>
         <div class="col-7">
           <div class="card card-body" id="nowPlaying" style="background-color:#D4D4D4">
@@ -68,6 +81,9 @@
 	  <small>{{ printDuration(currentState.track) }}</small>
           </div>
         </div>
+	<div class="slidecontainer">
+ 	   <input type="range" min="1" max="100" value="50" class="slider" id="myRange">
+	</div>
       </div>
       <div class="row" style="margin-top:20px">
 	 <div class="col-5">

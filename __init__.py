@@ -3,17 +3,15 @@ from __future__ import absolute_import, unicode_literals
 import os
 
 import tornado.web
-
 import json
 import csv
-
 import pykka
-
 from mopidy import config, ext, core
 
 __version__ = '0.3.1'
 
 _requiredVotes = 3
+_isPlayable = True
 _RankedSongList = []
 _rank_csv = './ranking.csv'
 
@@ -21,8 +19,15 @@ def setRequiredVotes(votes):
     global _requiredVotes
     _requiredVotes = votes
 
+def setPlayable(playable):
+    global _isPlayable
+    _isPlayable = playable
+
 def getRequiredVotes():
     return _requiredVotes
+
+def getPlayable():
+    return _isPlayable
 
 class PartyListener(core.CoreListener, pykka.ThreadingActor):
     def track_playback_started(self, tl_track):
@@ -57,6 +62,14 @@ class PartyListener(core.CoreListener, pykka.ThreadingActor):
 
 PartyListener.start()
 
+class PartyPlayable(tornado.web.RequestHandler):
+
+    def initialize(self, core, data):
+        self.core = core
+        self.data = data
+	
+    def get(self):
+        self.write(json.dumps({"_isPlayable": getPlayable()}))
 
 class PartyVoteHandler(tornado.web.RequestHandler):
 
@@ -130,23 +143,54 @@ class PartyRankingHandler(tornado.web.RequestHandler):
 	self.write(json.dumps(_RankedSongList , ensure_ascii=False))
 
         
+class PartyMuteHandler(tornado.web.RequestHandler):
 
+    def initialize(self, core, data):
+        self.core = core
+        self.data = data
+	
+    def get(self):
+        # user is not allowed to mute
+        if (str(self.request.remote_ip) in self.data["blacklist"]):
+            self.write("You are not allowed to mute! =(")
+        else:
+            if (getPlayable() == True):
+                self.core.playback.pause()
+                setPlayable(False)
+                self.write("You have stopped the playback for 30min")
+            else:
+                self.core.playback.play()
+                setPlayable(True)
+                self.write("Playback has resumed after Timeout")
+
+class PartyVolumeHandler(tornado.web.RequestHandler):
+
+    def initialize(self, core, data):
+        self.core = core
+        self.data = data
+	
+    def get(self):
+        volume = self.core.mixer.get_volume().get()
+        self.write(json.dumps({"_Volume": str(volume)}))
+
+    def post(self):
+        # user is not allowed to mute
+        if (str(self.request.remote_ip) in self.data["blacklist"]):
+            self.write("You are not allowed to set Volume! =(")
+        else:
+            volume = self.get_argument("_Volume")
+            self.core.mixer.set_volume(int(volume)).get()
 
 def party_factory(config, core):
-    data = {'track':"", 'votes':[], 'likes':[]}
+    data = {'track':"", 'votes':[], 'likes':[], 'blacklist':["10.220.0.61", "10.220.0.45"]}
     return [
+    ('/playable', PartyPlayable, {'core': core, 'data':data}),
     ('/vote', PartyVoteHandler, {'core': core, 'data':data, 'config':config}),
     ('/like', PartyLikeHandler, {'core': core, 'data':data, 'config':config}),
-    ('/rank', PartyRankingHandler, {'core': core, 'data':data})
+    ('/rank', PartyRankingHandler, {'core': core, 'data':data}),
+    ('/mute', PartyMuteHandler, {'core': core, 'data':data}),
+    ('/volume', PartyVolumeHandler, {'core': core, 'data': data})
     ]
-
-#class RankedSong(dict):
-#    def __init__(self, uri=None, name=None, count=None):
-#	self.SongURI = uri
-#	self.SongName = name
-#	self.PlayCount = count
-#    def setPlayCount(self, count):
-#        self.PlayCount = count
     
 class Extension(ext.Extension):
 
@@ -185,7 +229,7 @@ class Extension(ext.Extension):
             for row in reader:
                 _RankedSongList.append({"songURI" : row['songURI'], "songName" : row['songName'].decode('utf-8'), "artist" : row['artist'].decode('utf-8'), "playCount" : int(row['playCount'])})
         except IOError:
-            print("No Ranking was found!");
+            print("No Ranking was found!")
 
 
 

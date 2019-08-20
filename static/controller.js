@@ -7,15 +7,17 @@ angular.module('partyApp', [])
   .controller('MainController', function($scope) {
 
   // Scope variables
-
   $scope.message = [];
   $scope.tracks  = [];
   $scope.tracksToLookup = [];
   $scope.maxTracksToLookupAtOnce = 50;
   $scope.loading = true;
   $scope.ready   = false;
+  $scope.isPlaying = false;
+  $scope.volume = 50;
   $scope.history = [];
   $scope.ranking = [];
+  $scope.tempTrack = null;
   $scope.currentState = {
     paused : false,
     length : 0,
@@ -35,7 +37,6 @@ angular.module('partyApp', [])
                  $scope.history = $scope.history.slice(1);
              }
 	     $scope.history = $scope.history.slice(0, 4);
-             console.log("history:");
 	     console.log($scope.history);
         });
 
@@ -53,14 +54,67 @@ angular.module('partyApp', [])
   });
 
   var updateGUI = function() {
-    var temp = null;
-    mopidy.playback.getCurrentTrack().then(function(track) {
-      if(temp != track) {
-        temp = track;
-        $scope.currentState.track = track;
-        updateHistory(true);
-        $scope.$apply();
+    mopidy.playback.getState()
+    .then(function(state) {
+      var volume_changed = false;
+      if(state === 'stopped') {
+        if($scope.tempTrack != null) {
+          console.log("Playback is stopped!");
+          updateHistory(false);
+          $scope.currentState.track.name = 'Nothing playing, add some songs to get the party going!';
+          $scope.currentState.track.artists = '';
+          $scope.currentState.track.length = 0;
+          $scope.currentState.length = 0;
+          $scope.currentState.paused = false;
+          $scope.tempTrack = null;
+          $scope.message = '';
+        }
+      } else if (state === 'playing') {
+        mopidy.playback.getCurrentTrack()
+        .then(function(track) {
+          if($scope.tempTrack == null || ($scope.tempTrack.uri != track.uri)) {
+            console.log("Playback is started!");
+            updateHistory(true);
+            $scope.tempTrack = track;
+            $scope.currentState.track = track;
+            $scope.currentState.paused = false;
+            $scope.message = '';
+
+            mopidy.tracklist.getLength()
+            .then(function(length) {
+              $scope.currentState.length = length;
+            });
+          }
+
+          if($scope.currentState.paused == true) {
+            $scope.ready = $scope.playable();
+            $scope.currentState.paused = false;
+          }
+        });
+      } else if (state === 'paused'){
+        if($scope.currentState.paused != true) {
+          console.log("Playback is paused!");
+          $scope.currentState.paused = true;
+          $scope.ready = $scope.playable();
+        } 
+      } else {
+        console.log("Invalid Playback State!");
       }
+
+      var slider = document.getElementById("myRange");
+      var actVol = $scope.getVolume();
+      
+      if(slider.value != $scope.volume) {
+        console.log("You have changed to Volume!");
+        $scope.volume = slider.value;
+        $scope.setVolume();
+      } else {
+        console.log("Another has changed the Volume!");
+        slider.value = actVol;
+        $scope.volume = actVol;
+      }
+
+      $scope.$apply();
     });
   }
 
@@ -85,38 +139,20 @@ angular.module('partyApp', [])
       $scope.currentState.length = length;
     })
     .done(function(){
-      $scope.ready   = true;
+      var slider = document.getElementById("myRange");
+      $scope.volume = $scope.getVolume();
+      slider.value = $scope.volume;
+      $scope.ready = $scope.playable();
       $scope.loading = false;
       $scope.$apply();
       $scope.search();
+      console.log($scope.volume);
     });
 
     setInterval(function(){
         updateGUI();
-    }, 5000);
+    }, 1000);
 
-  });
-
-  mopidy.on('event:playbackStateChanged', function(event){
-    $scope.currentState.paused = (event.new_state === 'paused');
-    console.log("trackPlaybackStarted");
-    $scope.$apply();
-  });
-  mopidy.on('event:trackPlaybackStarted', function(event){
-    $scope.currentState.track = event.tl_track.track;
-    updateHistory(true); 
-    console.log("trackPlaybackStarted");
-    $scope.$apply();
-    $scope.refresh();
-  });
-  mopidy.on('event:tracklistChanged', function(){
-    mopidy.tracklist.getLength().done(function(length){
-      $scope.currentState.length = length;
-      $scope.$apply();
-    });
-  });
-  mopidy.on('event:stream_title_changed', function(){
-    console.log("New Trackplayback started!");
   });
 
   $scope.printDuration = function(track){
@@ -263,6 +299,48 @@ angular.module('partyApp', [])
     .done();
   };
 
+  $scope.playable = function(){
+    var xmlHttp = new XMLHttpRequest();
+    xmlHttp.open( "GET", "/party/playable", false );
+    xmlHttp.send( null );
+
+    var data = JSON.parse(xmlHttp.responseText)
+    return data._isPlayable;
+  }
+
+  $scope.mute = function(){
+    $scope.setMute();
+
+    setTimeout(function(){
+        $scope.setMute();
+    }, 18000000);
+  }
+
+  $scope.setMute = function() {
+    var xmlHttp = new XMLHttpRequest();
+    xmlHttp.open( "GET", "/party/mute", false );
+    xmlHttp.send( null );
+    $scope.message = ['success', xmlHttp.responseText];
+  }
+
+  $scope.setVolume = function() {
+    var xmlHttp = new XMLHttpRequest();
+    xmlHttp.open( "POST", "/party/volume", false);
+
+    var data = new FormData();
+    data.append('_Volume', $scope.volume);
+    xmlHttp.send(data);
+  }
+
+  $scope.getVolume = function() {
+    var xmlHttp = new XMLHttpRequest();
+    xmlHttp.open( "GET", "/party/volume", false);
+    xmlHttp.send( null );
+
+    var data = JSON.parse(xmlHttp.responseText)
+    return data._Volume;
+  }
+
   $scope.nextTrack = function(){
     var xmlHttp = new XMLHttpRequest();
     xmlHttp.open( "GET", "/party/vote", false ); // false for synchronous request
@@ -271,7 +349,7 @@ angular.module('partyApp', [])
     $scope.$apply();
   };
 
-  $scope.superlike = function(){
+  $scope.superlike = function() {
     var xmlHttp = new XMLHttpRequest();
     xmlHttp.open( "GET", "/party/like", false ); // false for synchronous request
     xmlHttp.send( null );
@@ -287,5 +365,4 @@ angular.module('partyApp', [])
     console.log(rankingList);
     $scope.ranking = rankingList.map(elem => elem.artist + " - " + elem.songName + " ["+elem.playCount+"]");
   };
- 
 });
