@@ -21,6 +21,7 @@ angular.module('partyApp', [])
   $scope.currentState = {
     paused : false,
     length : 0,
+	playTime: 0,
     track  : {
       length : 0,
       name   : 'Nothing playing, add some songs to get the party going!'
@@ -68,6 +69,7 @@ angular.module('partyApp', [])
           $scope.currentState.paused = false;
           $scope.tempTrack = null;
           $scope.message = '';
+		  $scope.isPlaying = false;
         }
       } else if (state === 'playing') {
         mopidy.playback.getCurrentTrack()
@@ -79,6 +81,7 @@ angular.module('partyApp', [])
             $scope.currentState.track = track;
             $scope.currentState.paused = false;
             $scope.message = '';
+			$scope.isPlaying = true;
 
             mopidy.tracklist.getLength()
             .then(function(length) {
@@ -103,16 +106,25 @@ angular.module('partyApp', [])
 
       var slider = document.getElementById("myRange");
       var actVol = $scope.getVolume();
-      
       if(slider.value != $scope.volume) {
         console.log("You have changed to Volume!");
         $scope.volume = slider.value;
         $scope.setVolume();
       } else {
-        console.log("Another has changed the Volume!");
         slider.value = actVol;
         $scope.volume = actVol;
       }
+		
+      var progress = document.getElementById("myProgress");
+      if($scope.isPlaying) {
+        mopidy.playback.getTimePosition()
+        .then(function(time) {
+		  $scope.currentState.playTime = time;
+          progress.value = (($scope.currentState.playTime * 100) / $scope.currentState.track.length);
+        });
+      } else {
+	    progress.value = 0;
+	  }
 
       $scope.$apply();
     });
@@ -137,7 +149,11 @@ angular.module('partyApp', [])
     })
     .then(function(length){
       $scope.currentState.length = length;
+	  return mopidy.playback.getTimePosition();
     })
+	.then(function(time){
+	  $scope.currentState.playTime = time;
+	})
     .done(function(){
       var slider = document.getElementById("myRange");
       $scope.volume = $scope.getVolume();
@@ -151,20 +167,20 @@ angular.module('partyApp', [])
 
     setInterval(function(){
         updateGUI();
-    }, 1000);
+    }, 500);
 
   });
 
-  $scope.printDuration = function(track){
+  $scope.printDuration = function(length){
 
-    if(!track.length)
+    if(!length)
       return '';
 
-    var _sum = parseInt(track.length / 1000);
+    var _sum = parseInt(length / 1000);
     var _min = parseInt(_sum / 60);
     var _sec = _sum % 60;
 
-    return '(' + _min + ':' + (_sec < 10 ? '0' + _sec : _sec) + ')' ;
+    return _min + ':' + (_sec < 10 ? '0' + _sec : _sec);
   };
 
   $scope.togglePause = function(){

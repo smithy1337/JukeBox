@@ -65,25 +65,30 @@
           <div class="alert" role="alert" ng-show="message.length" ng-class="{'alert-success' : (message[0] == 'success'), 'alert-danger' : (message[0] == 'error')}">
             {{ message[1] }}
           </div>
-	<button id="secret" onClick="popUp()">SECRET</button>
+	      <button id="secret" onClick="popUp()">SECRET</button>
         </div>
         <div class="col-7">
           <div class="card card-body" id="nowPlaying" style="background-color:#D4D4D4">
-		 <h5 class="card-title" id="cardtitle">Now Playing ♬</h5>
-          {{ currentState.track.name }}
-          <small>
-	    <span ng-if="currentState.track.artists">by</span>
+		    <h5 class="card-title" id="cardtitle">Now Playing ♬</h5>
+            {{ currentState.track.name }}
+            <small>
+	          <span ng-if="currentState.track.artists">by</span>
               <span ng-repeat="artist in currentState.track.artists">
- 	        <span ng-if="!$first"> & </span>
-                {{ artist.name }}
-	      </span> 
-          </small>
-	  <small>{{ printDuration(currentState.track) }}</small>
+ 	          <span ng-if="!$first"> & </span>
+                  {{ artist.name }}
+	          </span> 
+            </small>
+	        <small>
+			  <span ng-if="currentState.track.artists">({{ printDuration(currentState.playTime) }} / {{ printDuration(currentState.track.length) }})</span>
+			</small>
+		    <div class="ProgressBar">
+			  <progress id="myProgress" value="0" max="100"></progress>
+		    </div>
           </div>
         </div>
-	<div class="slidecontainer">
- 	   <input type="range" min="1" max="100" value="50" class="slider" id="myRange">
-	</div>
+	    <div class="slidecontainer">
+ 	      <input type="range" min="1" max="100" value="50" class="slider" id="myRange">
+	    </div>
       </div>
       <div class="row" style="margin-top:20px">
 	 <div class="col-5">
@@ -122,7 +127,7 @@
             <span class="fas fa-play" ng-if="!track.disabled"></span>
             <span class="fas fa-check" ng-if="track.disabled"></span>
           </button>
-          {{ track.name }} <small>{{ printDuration(track) }}</small><br>
+          {{ track.name }} <small>({{ printDuration(track.length) }})</small><br>
           <small>
             {{ track.album.name }}
             <span ng-if="track.artists">by</span>
